@@ -1,3 +1,8 @@
+# --- Private project documentation (never committed, now or in future) ---
+# Everything under private/ is excluded: BRD/PRD, internal handoff/security/
+# compliance/rulebook docs, dashboards, notes, and any future doc added here.
+private/
+
 # --- Secrets & environment ---
 .env
 .env.*
