@@ -1,0 +1,50 @@
+# --- Secrets & environment ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Node / Next.js (if dashboard uses it) ---
+node_modules/
+.next/
+out/
+
+# --- Database ---
+*.sqlite3
+*.db
+pgdata/
+
+# --- Logs & local data ---
+*.log
+logs/
+data/raw/
+data/cache/
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Docker ---
+docker-compose.override.yml
+
+# --- QuantConnect LEAN local artifacts ---
+.idea/
+backtests/*/output/
