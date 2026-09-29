@@ -37,8 +37,10 @@ def test_settings_read_from_environment(monkeypatch: pytest.MonkeyPatch) -> None
     for key, value in FAKE_PASSWORDS.items():
         monkeypatch.setenv(f"HQ_{key.upper()}", value)
     monkeypatch.setenv("HQ_DB_PORT", "6543")
+    monkeypatch.setenv("HQ_LOG_LEVEL", "DEBUG")
     settings = Settings(_env_file=None)  # type: ignore[call-arg]
     assert settings.db_port == 6543
+    assert settings.log_level == "DEBUG"
     assert settings.db_app_password.get_secret_value() == FAKE_PASSWORDS["db_app_password"]
 
 

@@ -6,6 +6,7 @@ Nothing here has a secret default: a missing password stops the app (fail closed
 
 from enum import StrEnum
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -29,6 +30,8 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 
     db_host: str = "127.0.0.1"
     db_port: int = Field(default=5432, ge=1, le=65535)
