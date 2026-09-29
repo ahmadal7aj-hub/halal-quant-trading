@@ -1,0 +1,11 @@
+# Eligible-universe filters (PRD section 8), applied after the Sharia screen.
+# PROPOSED values, not yet approved by the owner (open issue OI-11): decide before task 14.
+config_type: universe
+version: universe-v1
+status: proposed
+sharia_methodology: AAOIFI-v1
+
+min_price_usd: "5.00"  # avoid penny stocks
+min_median_daily_dollar_volume_usd: "1000000"
+liquidity_window_trading_days: 20
+max_price_age_trading_days: 5  # an older last price is stale, so the stock is excluded
