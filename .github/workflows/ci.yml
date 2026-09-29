@@ -9,6 +9,30 @@ on:
 jobs:
   quality-gates:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_USER: hq_admin
+          POSTGRES_PASSWORD: ci-throwaway-admin
+          POSTGRES_DB: halal_quant
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hq_admin -d halal_quant"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Throwaway passwords for the CI-only database; it is destroyed after every run.
+      HQ_DB_HOST: 127.0.0.1
+      HQ_DB_PORT: 5432
+      HQ_DB_NAME: halal_quant
+      HQ_DB_ADMIN_USER: hq_admin
+      HQ_DB_ADMIN_PASSWORD: ci-throwaway-admin
+      HQ_DB_MIGRATOR_PASSWORD: ci-throwaway-migrator
+      HQ_DB_APP_PASSWORD: ci-throwaway-app
+      HQ_DB_READONLY_PASSWORD: ci-throwaway-readonly
     steps:
       - uses: actions/checkout@v7
         with:
@@ -42,5 +66,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Tests (pytest, with coverage)
+      - name: Database bootstrap (roles + schema)
+        run: uv run python -m halal_quant.db.bootstrap
+
+      - name: Migrations check (upgrade, downgrade, upgrade on a fresh database)
+        run: |
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+
+      - name: Tests (pytest, with coverage, including database tests)
+        env:
+          HQ_RUN_INTEGRATION_TESTS: "1"
         run: uv run pytest

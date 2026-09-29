@@ -1,0 +1,27 @@
+# Local development database. Start it with:  docker compose up -d --wait
+# Passwords come from .env (never committed); see .env.example.
+name: halal-quant
+
+services:
+  db:
+    image: postgres:18.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${HQ_DB_ADMIN_USER:-hq_admin}
+      POSTGRES_PASSWORD: ${HQ_DB_ADMIN_PASSWORD:?set HQ_DB_ADMIN_PASSWORD in .env}
+      POSTGRES_DB: ${HQ_DB_NAME:-halal_quant}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    ports:
+      # Bound to this machine only; Postgres is never reachable from the network.
+      - "127.0.0.1:${HQ_DB_PORT:-5432}:5432"
+    volumes:
+      # From Postgres 18 the volume mounts at /var/lib/postgresql (data in 18/docker).
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
