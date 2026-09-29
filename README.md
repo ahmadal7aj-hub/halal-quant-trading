@@ -8,11 +8,30 @@ This is not an AI stock-picker and not a system aimed at high monthly returns.
 
 ## Status
 
-Project is in early setup. No application code yet.
+Phase 1 (Foundation) in progress: database foundation in place.
 
 ## Setup
 
-Not yet applicable — no runnable code exists.
+Needs [uv](https://docs.astral.sh/uv/) and Docker Desktop (WSL 2 engine on Windows).
+
+```sh
+uv sync                                   # install dependencies
+cp .env.example .env                      # then fill in the HQ_DB_* passwords
+docker compose up -d --wait               # start PostgreSQL (listens on 127.0.0.1 only)
+uv run python -m halal_quant.db.bootstrap # create roles + schema (safe to re-run)
+uv run alembic upgrade head               # apply migrations
+```
+
+Database roles (least privilege): `hq_migrator` owns the `hq` schema and is used only by
+migrations; `hq_app` reads and writes data but cannot change the schema; `hq_readonly` can
+only read.
+
+## Tests
+
+```sh
+uv run pytest                                  # unit tests
+HQ_RUN_INTEGRATION_TESTS=1 uv run pytest       # also database tests (needs the steps above)
+```
 
 ## Repository notes
 

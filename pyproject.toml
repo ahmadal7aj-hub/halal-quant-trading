@@ -7,7 +7,12 @@ authors = [
     { name = "Ahmad Alhaj" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "alembic>=1.20.0",
+    "psycopg[binary]>=3.3.6",
+    "pydantic-settings>=2.15.0",
+    "sqlalchemy>=2.1.1",
+]
 
 [project.scripts]
 halal-quant = "halal_quant:main"
@@ -42,6 +47,7 @@ warn_unused_ignores = true
 [tool.pytest.ini_options]
 addopts = "--cov=halal_quant --cov-report=term-missing"
 testpaths = ["tests"]
+filterwarnings = ["error"]
 
 [tool.coverage.run]
 source = ["src/halal_quant"]

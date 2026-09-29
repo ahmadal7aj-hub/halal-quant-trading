@@ -6,11 +6,16 @@ repos:
         args: [--fix]
       - id: ruff-format
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.3.1
+  # Runs in the project's own environment so mypy sees the real dependencies
+  # (SQLAlchemy, pydantic, psycopg); same command as CI.
+  - repo: local
     hooks:
       - id: mypy
-        additional_dependencies: []
+        name: mypy
+        entry: uv run mypy src
+        language: system
+        types: [python]
+        pass_filenames: false
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
