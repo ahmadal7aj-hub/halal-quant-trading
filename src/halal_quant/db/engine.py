@@ -8,10 +8,12 @@ from halal_quant.core.settings import DB_SCHEMA, DbRole, Settings
 metadata = MetaData(schema=DB_SCHEMA)
 
 
-def make_engine(settings: Settings, role: DbRole = DbRole.APP) -> Engine:
+def make_engine(
+    settings: Settings, role: DbRole = DbRole.APP, search_path: str = DB_SCHEMA
+) -> Engine:
     """Engine for one role. The app uses `DbRole.APP`; only migrations use `MIGRATOR`."""
     return create_engine(
         settings.db_url(role),
         pool_pre_ping=True,
-        connect_args={"options": f"-c search_path={DB_SCHEMA}"},
+        connect_args={"options": f"-c search_path={search_path}"},
     )
