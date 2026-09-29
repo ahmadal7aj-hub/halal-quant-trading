@@ -69,11 +69,12 @@ jobs:
       - name: Database bootstrap (roles + schema)
         run: uv run python -m halal_quant.db.bootstrap
 
-      - name: Migrations check (upgrade, downgrade, upgrade on a fresh database)
+      - name: Migrations check (upgrade, downgrade, upgrade, drift check on a fresh database)
         run: |
           uv run alembic upgrade head
           uv run alembic downgrade base
           uv run alembic upgrade head
+          uv run alembic check   # the code's table definitions match the migrations
 
       - name: Tests (pytest, with coverage, including database tests)
         env:
