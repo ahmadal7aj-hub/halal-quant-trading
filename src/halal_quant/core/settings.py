@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     db_app_password: SecretStr
     db_readonly_password: SecretStr
 
+    # Sharadar (Nasdaq Data Link) API key. Optional: only data imports need it. The owner puts it
+    # in .env; it is a SecretStr, so logging masks it automatically.
+    sharadar_api_key: SecretStr | None = None
+
     def role_password(self, role: DbRole) -> SecretStr:
         return {
             DbRole.MIGRATOR: self.db_migrator_password,
