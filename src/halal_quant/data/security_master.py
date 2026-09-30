@@ -56,6 +56,8 @@ security_table = Table(
     Column("country", Text),
     Column("sector", Text),
     Column("industry", Text),
+    Column("category", Text),  # provider's security type, e.g. "Domestic Common Stock"
+    Column("sic_code", Text),  # SEC industry code (current only: G8 OI-2)
     Column("isin", Text),
     Column("cusip", Text),
     Column("start_date", Date),
@@ -123,6 +125,8 @@ class SecurityInfo(BaseModel):
     country: str | None = None
     sector: str | None = None
     industry: str | None = None
+    category: str | None = None
+    sic_code: str | None = None
     isin: str | None = None
     cusip: str | None = None
 
