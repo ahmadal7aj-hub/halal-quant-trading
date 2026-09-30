@@ -135,8 +135,10 @@ def test_corporate_actions_of_every_type_are_stored(conn: Connection, security_i
             CorporateAction(**base, action_type="DELISTING", details={"reason": "acquired"}),
         ],
     )
-    count = conn.execute(corporate_action_table.select()).all()
-    assert len(count) == 5
+    stored = conn.execute(
+        corporate_action_table.select().where(corporate_action_table.c.security_id == security_id)
+    ).all()
+    assert len(stored) == 5
 
 
 def test_database_rejects_the_same_corporate_action_twice(
