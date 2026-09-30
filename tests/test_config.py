@@ -46,9 +46,10 @@ def test_repo_sharia_config_matches_approved_s1() -> None:
     }
 
 
-def test_repo_universe_config_loads_and_is_still_proposed() -> None:
+def test_repo_universe_config_loads_and_is_approved() -> None:
     loaded = load_config(UNIVERSE, UniverseConfig)
-    assert loaded.config.status == "proposed"  # owner decision OI-11 pending
+    assert loaded.config.status == "approved"  # owner decision OI-11, 2026-09-30
+    assert loaded.config.approved_by == "owner"
     assert loaded.config.sharia_methodology == "AAOIFI-v1"
 
 
