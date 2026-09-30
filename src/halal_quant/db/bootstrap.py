@@ -11,6 +11,8 @@ Roles (doc 02 §7, least privilege):
   their own migration.
 - `hq_readonly` gets SELECT only.
 
+It also installs the `btree_gist` extension, which the migrator is not allowed to create.
+
 Re-running also resets the role passwords from settings, which is how passwords are rotated.
 """
 
@@ -57,6 +59,9 @@ def bootstrap_statements(
             database, migrator, app, readonly
         ),
         sql.SQL("REVOKE CREATE ON SCHEMA public FROM PUBLIC").format(),
+        # Lets exclusion constraints combine `=` with range overlap (e.g. one company per
+        # ticker at a time). Creating extensions needs rights the migrator deliberately lacks.
+        sql.SQL("CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public").format(),
         sql.SQL("CREATE SCHEMA IF NOT EXISTS {} AUTHORIZATION {}").format(schema, migrator),
         sql.SQL("ALTER SCHEMA {} OWNER TO {}").format(schema, migrator),
         sql.SQL("REVOKE ALL ON SCHEMA {} FROM PUBLIC").format(schema),

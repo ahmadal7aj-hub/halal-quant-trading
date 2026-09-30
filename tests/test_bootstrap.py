@@ -38,6 +38,10 @@ def test_schema_is_owned_by_migrator_and_app_gets_data_access_only() -> None:
     assert 'GRANT SELECT ON TABLES TO "hq_readonly"' in sql
 
 
+def test_btree_gist_is_installed_by_the_superuser_not_migrations() -> None:
+    assert "CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public" in render(set())
+
+
 def test_rerun_never_regrants_existing_tables() -> None:
     # Re-granting on ALL TABLES would undo per-table revokes (e.g. append-only audit log).
     assert not any("ALL TABLES" in s for s in render(existing=set()))
