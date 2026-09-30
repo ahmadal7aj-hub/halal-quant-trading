@@ -22,6 +22,7 @@ def price(**overrides: Any) -> DailyPrice:
         "low": Decimal("9.5"),
         "close": Decimal("10.5"),
         "adjusted_close": Decimal("10.4"),
+        "close_unadjusted": Decimal("10.5"),
         "volume": 1000,
         "source": "test",
         "data_version": "v-test",
@@ -29,7 +30,9 @@ def price(**overrides: Any) -> DailyPrice:
     return DailyPrice(**{**fields, **overrides})
 
 
-@pytest.mark.parametrize("field", ["open", "high", "low", "close", "adjusted_close"])
+@pytest.mark.parametrize(
+    "field", ["open", "high", "low", "close", "adjusted_close", "close_unadjusted"]
+)
 @pytest.mark.parametrize("bad", [Decimal("0"), Decimal("-1"), Decimal("NaN"), Decimal("Infinity")])
 def test_non_positive_or_non_finite_prices_are_refused(field: str, bad: Decimal) -> None:
     with pytest.raises(ValidationError):
