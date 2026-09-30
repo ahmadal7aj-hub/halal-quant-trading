@@ -11,6 +11,8 @@ Lookups that find nothing return None, which callers treat as "not eligible" (ru
 Every change writes an audit event on the caller's connection, so both commit together.
 """
 
+from collections import defaultdict
+from collections.abc import Iterable
 from datetime import date, timedelta
 from typing import Any
 
@@ -158,6 +160,31 @@ def ticker_on(conn: Connection, security_id: int, on: date) -> str | None:
     return conn.execute(
         select(t.ticker).where(t.security_id == security_id, _active_on(on))
     ).scalar_one_or_none()
+
+
+class TickerDirectory:
+    """Every ticker period held in memory, for resolving millions of provider rows quickly.
+
+    Answers the same question as `resolve_ticker`, without a database query per row. It is a
+    snapshot: build a fresh one after the security master changes.
+    """
+
+    def __init__(self, periods: Iterable[tuple[str, int, date, date | None]]) -> None:
+        self._periods: dict[str, list[tuple[date, date | None, int]]] = defaultdict(list)
+        for ticker, security_id, valid_from, valid_to in periods:
+            self._periods[ticker].append((valid_from, valid_to, security_id))
+
+    @classmethod
+    def load(cls, conn: Connection) -> "TickerDirectory":
+        t = security_ticker_table.c
+        rows = conn.execute(select(t.ticker, t.security_id, t.valid_from, t.valid_to))
+        return cls((r.ticker, r.security_id, r.valid_from, r.valid_to) for r in rows)
+
+    def resolve(self, ticker: str, on: date) -> int | None:
+        for valid_from, valid_to, security_id in self._periods.get(normalize_ticker(ticker), ()):
+            if valid_from <= on and (valid_to is None or on < valid_to):
+                return security_id
+        return None
 
 
 def _ensure_ticker_free(conn: Connection, ticker: str, from_date: date) -> None:

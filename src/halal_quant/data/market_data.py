@@ -4,6 +4,11 @@ Prices are keyed by (security_id, trading date). Trading dates are US Eastern da
 dates; `imported_at` is a UTC timestamp. Every row records its `source` and the `data_version`
 it came from, so a result can be traced back to the exact data (BRD §6.4).
 
+`open`, `high`, `low`, `close` and `volume` are as delivered by the provider: Sharadar adjusts them
+for splits (as of the latest split it knows of), so they are comparable across time.
+`close_unadjusted` is the price actually paid on the day and `adjusted_close` is also adjusted for
+dividends. Stored rows are never changed by the app role; see migration 0008.
+
 The database rejects duplicate rows and non-positive prices or negative volume. Prices that are
 merely suspicious (high below low, big jumps, gaps) are stored and flagged by the data-quality
 checks (task 12), so bad source data is reported rather than silently refused or hidden.
@@ -60,8 +65,9 @@ daily_price_table = Table(
     Column("open", PRICE, nullable=False),
     Column("high", PRICE, nullable=False),
     Column("low", PRICE, nullable=False),
-    Column("close", PRICE, nullable=False),  # as traded, not adjusted
+    Column("close", PRICE, nullable=False),  # split-adjusted, like open/high/low
     Column("adjusted_close", PRICE, nullable=False),  # adjusted for splits and dividends
+    Column("close_unadjusted", PRICE, nullable=False),  # the price actually paid on the day
     Column("volume", BigInteger, nullable=False),
     Column("source", Text, nullable=False),
     Column("data_version", Text, nullable=False),
@@ -69,6 +75,7 @@ daily_price_table = Table(
     PrimaryKeyConstraint("security_id", "price_date", name="pk_daily_price"),
     CheckConstraint("open > 0 AND high > 0 AND low > 0 AND close > 0", name="ck_daily_price_ohlc"),
     CheckConstraint("adjusted_close > 0", name="ck_daily_price_adjusted_close"),
+    CheckConstraint("close_unadjusted > 0", name="ck_daily_price_close_unadjusted"),
     CheckConstraint("volume >= 0", name="ck_daily_price_volume"),
     CheckConstraint("source <> '' AND data_version <> ''", name="ck_daily_price_lineage"),
     Index("ix_daily_price_price_date", "price_date"),  # "everything traded on this date"
@@ -133,6 +140,7 @@ class DailyPrice(BaseModel):
     low: Decimal = Field(gt=0, allow_inf_nan=False)
     close: Decimal = Field(gt=0, allow_inf_nan=False)
     adjusted_close: Decimal = Field(gt=0, allow_inf_nan=False)
+    close_unadjusted: Decimal = Field(gt=0, allow_inf_nan=False)
     volume: int = Field(ge=0)
     source: str = Field(min_length=1)
     data_version: str = Field(min_length=1)
