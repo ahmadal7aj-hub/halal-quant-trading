@@ -11,9 +11,11 @@ through the dated ticker history in the security master (`TickerDirectory`). A r
 belonged to no security on that day is skipped and counted, never guessed.
 
 Sharadar's open, high, low, close and volume are split-adjusted as of the download, `closeadj` is
-also dividend-adjusted, and `closeunadj` is the price actually paid. After a later split or
-dividend the provider restates old rows. Stored rows are never overwritten (the app role cannot):
-a row whose stored values differ from a new download is reported for review (G8 OI-16).
+also dividend-adjusted, and `closeunadj` is the price actually paid. Split-adjusted volume can be
+fractional (e.g. 6239.16 after a split), so it is stored rounded to whole shares (G8 OI-18). After
+a later split or dividend the provider restates old rows. Stored rows are never overwritten (the
+app role cannot): a row whose stored values differ from a new download is reported for review
+(G8 OI-16).
 """
 
 import argparse
@@ -22,7 +24,7 @@ from collections import Counter
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from itertools import batched
 
 from pydantic import ValidationError
@@ -111,7 +113,7 @@ def parse_price(
     if any(value is None for value in numbers.values()):
         return None, "missing_value"
     volume = numbers.pop("volume")
-    if volume is None or volume != volume.to_integral_value():
+    if volume is None:
         return None, "bad_volume"
     ticker = normalize_ticker(ticker)
     security_id = directory.resolve(ticker, price_date)
@@ -122,7 +124,7 @@ def parse_price(
             {
                 "security_id": security_id,
                 "price_date": price_date,
-                "volume": int(volume),
+                "volume": int(volume.to_integral_value(ROUND_HALF_UP)),
                 "source": SOURCE,
                 "data_version": data_version,
                 **numbers,

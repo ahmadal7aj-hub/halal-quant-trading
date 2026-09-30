@@ -88,7 +88,6 @@ def test_a_price_row_becomes_a_price_with_all_three_closes() -> None:
         ({"date": "04/03/2024"}, "bad_value"),
         ({"open": "x"}, "bad_value"),
         ({"close": ""}, "missing_value"),
-        ({"volume": "10.5"}, "bad_volume"),
         ({"volume": "-1"}, "impossible_price_or_volume"),
         ({"low": "0"}, "impossible_price_or_volume"),
         ({"ticker": "ZQZ"}, "no_security_for_ticker_on_date"),
@@ -107,6 +106,16 @@ def test_suspicious_but_possible_prices_are_kept_for_the_quality_checks() -> Non
 def test_a_volume_written_with_a_decimal_point_is_accepted() -> None:
     parsed, _ = parse_price(price_row(volume="1000.0"), DIRECTORY, "v1")
     assert parsed is not None and parsed[0].volume == 1000
+
+
+@pytest.mark.parametrize(
+    ("delivered", "stored"), [("6239.16", 6239), ("283000.5", 283001), ("0.4", 0), ("10.5", 11)]
+)
+def test_a_fractional_split_adjusted_volume_is_rounded_to_whole_shares(
+    delivered: str, stored: int
+) -> None:
+    parsed, _ = parse_price(price_row(volume=delivered), DIRECTORY, "v1")
+    assert parsed is not None and parsed[0].volume == stored
 
 
 def test_month_windows_cover_every_day_once() -> None:
