@@ -1,8 +1,11 @@
 # Eligible-universe filters (PRD section 8), applied after the Sharia screen.
-# PROPOSED values, not yet approved by the owner (open issue OI-11): decide before task 14.
+# Values approved by the owner on 2026-09-30 (open issue OI-11). Changing ANY value needs owner
+# approval and a new version (e.g. universe-v2 in a new file): old results keep their version.
 config_type: universe
 version: universe-v1
-status: proposed
+status: approved
+approved_by: owner
+approved_on: 2026-09-30
 sharia_methodology: AAOIFI-v1
 
 min_price_usd: "5.00"  # avoid penny stocks

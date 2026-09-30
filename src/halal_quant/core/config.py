@@ -75,6 +75,8 @@ class UniverseConfig(_Strict):
     config_type: Literal["universe"]
     version: str = Field(min_length=1)
     status: Status
+    approved_by: str | None = None
+    approved_on: date | None = None
     sharia_methodology: str = Field(min_length=1)
     min_price_usd: Money
     min_median_daily_dollar_volume_usd: Money
