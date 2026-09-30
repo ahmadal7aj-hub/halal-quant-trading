@@ -71,6 +71,24 @@ class ShariaConfig(_Strict):
     excluded_businesses: list[ExcludedBusiness] = Field(min_length=1)
 
 
+class ManualListEntry(_Strict):
+    """One company decided by hand, whatever its industry or ratios (S1 §4)."""
+
+    source_id: str = Field(min_length=1)  # the provider's permanent ID (Sharadar permaticker)
+    company_name: str = Field(min_length=1)
+    status: Literal["NON_HALAL", "PENDING_REVIEW"]
+    reason: str = Field(min_length=1)
+    approved_by: str = Field(min_length=1)
+    approved_on: date
+
+
+class ManualListConfig(_Strict):
+    config_type: Literal["sharia_manual_list"]
+    version: str = Field(min_length=1)
+    status: Status
+    entries: list[ManualListEntry]
+
+
 class UniverseConfig(_Strict):
     config_type: Literal["universe"]
     version: str = Field(min_length=1)

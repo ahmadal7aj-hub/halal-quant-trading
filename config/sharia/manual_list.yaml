@@ -1,0 +1,8 @@
+# Manual Sharia list (S1 section 4): companies decided by hand, whatever their industry or ratios.
+# Covers pork producers, adult entertainment and any case the Sharia reviewer flags. Each entry
+# needs a reason, who approved it and when. Changing this file needs a new version, so old
+# classification results stay reproducible. Empty for now: nothing has been flagged yet.
+config_type: sharia_manual_list
+version: manual-list-v1
+status: proposed
+entries: []
