@@ -32,17 +32,15 @@ from sqlalchemy import Connection, and_, func, select, update
 from sqlalchemy.exc import IntegrityError
 
 from halal_quant.audit import AuditEvent, record_event
-from halal_quant.core.logging import configure_logging, correlation_scope
-from halal_quant.core.settings import DbRole, get_settings
 from halal_quant.data.security_master import (
     SecurityInfo,
     normalize_ticker,
     security_table,
     security_ticker_table,
 )
-from halal_quant.data.sharadar.client import Download, SharadarClient, SharadarError
+from halal_quant.data.sharadar.cli import run_import
+from halal_quant.data.sharadar.client import Download
 from halal_quant.data.versions import DataVersion, register_data_version, version_label
-from halal_quant.db.engine import make_engine
 
 log = logging.getLogger(__name__)
 
@@ -342,27 +340,12 @@ def import_companies(
 
 
 def main() -> int:
-    settings = get_settings()
-    configure_logging(settings, level=settings.log_level)
-    if settings.sharadar_api_key is None:
-        print("HQ_SHARADAR_API_KEY is not set. Add it to .env (never in chat or git).")
-        return 1
-    client = SharadarClient(settings.sharadar_api_key)
-    with correlation_scope():
-        try:
-            download = client.fetch_csv("tickers", REQUIRED_COLUMNS, table="stocks")
-        except SharadarError as exc:
-            print(f"Sharadar download failed: {exc}")
-            return 1
-        print(f"Downloaded {len(download.rows)} rows. Importing...")
-        engine = make_engine(settings, DbRole.APP)
-        with engine.begin() as conn:
-            result = import_companies(conn, download)
-        engine.dispose()
-    print(result.summary())
-    for note in result.needs_review[:20]:
-        print(f"  review: {note}")
-    return 0
+    return run_import(
+        "tickers",
+        REQUIRED_COLUMNS,
+        lambda conn, download: import_companies(conn, download),
+        table="stocks",
+    )
 
 
 if __name__ == "__main__":

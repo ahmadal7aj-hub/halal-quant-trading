@@ -7,7 +7,7 @@ import pytest
 from pydantic import SecretStr
 
 from halal_quant.core.settings import Settings
-from halal_quant.data.sharadar import companies
+from halal_quant.data.sharadar import cli, companies
 from halal_quant.data.sharadar.client import Download, SharadarError
 from halal_quant.data.sharadar.companies import ImportResult, parse_company
 
@@ -114,7 +114,7 @@ def settings_with_key(fake_settings: Settings, key: str | None) -> Settings:
 def test_main_needs_the_api_key(
     monkeypatch: pytest.MonkeyPatch, fake_settings: Settings, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(companies, "get_settings", lambda: settings_with_key(fake_settings, None))
+    monkeypatch.setattr(cli, "get_settings", lambda: settings_with_key(fake_settings, None))
     assert companies.main() == 1
     assert "HQ_SHARADAR_API_KEY is not set" in capsys.readouterr().out
 
@@ -129,8 +129,8 @@ def test_main_reports_a_failed_download_without_the_key(
         def fetch_csv(self, *args: Any, **kwargs: Any) -> None:
             raise SharadarError("Sharadar answered HTTP 401: bad key")
 
-    monkeypatch.setattr(companies, "get_settings", lambda: settings_with_key(fake_settings, "k-1"))
-    monkeypatch.setattr(companies, "SharadarClient", Failing)
+    monkeypatch.setattr(cli, "get_settings", lambda: settings_with_key(fake_settings, "k-1"))
+    monkeypatch.setattr(cli, "SharadarClient", Failing)
     assert companies.main() == 1
     assert "download failed: Sharadar answered HTTP 401" in capsys.readouterr().out
 
@@ -151,9 +151,9 @@ def test_main_downloads_imports_and_prints_a_summary(
     engine = FakeEngine()
     result = ImportResult(data_version="v1", created=1)
     result.needs_review.append("1 (ZQ): check me")
-    monkeypatch.setattr(companies, "get_settings", lambda: settings_with_key(fake_settings, "k-1"))
-    monkeypatch.setattr(companies, "SharadarClient", Working)
-    monkeypatch.setattr(companies, "make_engine", lambda *a, **k: engine)
+    monkeypatch.setattr(cli, "get_settings", lambda: settings_with_key(fake_settings, "k-1"))
+    monkeypatch.setattr(cli, "SharadarClient", Working)
+    monkeypatch.setattr(cli, "make_engine", lambda *a, **k: engine)
     monkeypatch.setattr(companies, "import_companies", lambda conn, download: result)
     assert companies.main() == 0
     out = capsys.readouterr().out
