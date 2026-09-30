@@ -1,0 +1,51 @@
+# Sharia screening methodology AAOIFI-v1 (private S1 spec, approved by the owner 28 Sep 2026).
+# Changing ANY value needs owner approval and a new version (e.g. AAOIFI-v2 in a new file):
+# old results keep their version; nothing is rewritten (BRD section 9).
+config_type: sharia_methodology
+version: AAOIFI-v1
+status: approved
+approved_by: owner
+approved_on: 2026-09-28
+
+# Ratios are compared at full precision; exactly at the limit passes ("does not exceed").
+max_debt_to_market_value: "0.30"
+max_cash_and_investments_to_market_value: "0.30"
+max_prohibited_income_to_revenue: "0.05"
+
+max_report_age_months: 16
+market_value_method: screening_date
+screening_frequency: monthly_last_trading_day
+
+# Core excluded businesses: excluded whatever the ratios. Sharadar industry names are still to
+# be checked against real values (open issue OI-10, task 13 prep).
+excluded_businesses:
+  - category: conventional_finance
+    industries:
+      - Banks - Diversified
+      - Banks - Regional
+      - Credit Services
+      - Mortgage Finance
+      - Insurance - Diversified
+      - Insurance - Life
+      - Insurance - Property & Casualty
+      - Insurance - Specialty
+      - Insurance - Reinsurance
+      - Insurance Brokers
+      - REIT - Mortgage
+      - Capital Markets
+    sic_ranges: [[6000, 6299], [6300, 6411]]
+  - category: alcohol
+    industries: [Beverages - Brewers, Beverages - Wineries & Distilleries]
+    sic_ranges: [[2082, 2082], [2084, 2085], [5180, 5182]]
+  - category: tobacco
+    industries: [Tobacco]
+    sic_ranges: [[2100, 2141], [5194, 5194]]
+  - category: gambling
+    industries: [Gambling, Resorts & Casinos]
+    sic_ranges: []
+  - category: pork
+    industries: []  # no reliable industry code: covered by the manual list (task 13)
+    sic_ranges: []
+  - category: adult_entertainment
+    industries: []  # no reliable industry code: covered by the manual list (task 13)
+    sic_ranges: []
