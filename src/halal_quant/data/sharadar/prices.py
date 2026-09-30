@@ -13,9 +13,9 @@ belonged to no security on that day is skipped and counted, never guessed.
 Sharadar's open, high, low, close and volume are split-adjusted as of the download, `closeadj` is
 also dividend-adjusted, and `closeunadj` is the price actually paid. Split-adjusted volume can be
 fractional (e.g. 6239.16 after a split), so it is stored rounded to whole shares (G8 OI-18). After
-a later split or
-dividend the provider restates old rows. Stored rows are never overwritten (the app role cannot):
-a row whose stored values differ from a new download is reported for review (G8 OI-16).
+a later split or dividend the provider restates old rows. Stored rows are never overwritten (the
+app role cannot): a row whose stored values differ from a new download is reported for review
+(G8 OI-16).
 """
 
 import argparse
