@@ -288,9 +288,9 @@ def test_the_run_is_audited(conn: Connection) -> None:
     a = audit_event_table.c
     event = (
         conn.execute(
-            select(audit_event_table).where(
-                a.action == "classification.run", a.entity_id == f"{METHOD}:{D}"
-            )
+            select(audit_event_table)
+            .where(a.action == "classification.run", a.entity_id == f"{METHOD}:{D}")
+            .order_by(a.sequence.desc())
         )
         .mappings()
         .first()
