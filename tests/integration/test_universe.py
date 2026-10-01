@@ -257,8 +257,9 @@ def test_no_quality_run_covering_the_window_means_no_universe(conn: Connection) 
     sid = make_security(conn)
     classify(conn, sid)
     trade(conn, sid)
+    after_every_real_run = date(2027, 6, 1)
     with pytest.raises(UniverseError, match="No data-quality run covers"):
-        eligible(conn, sid)
+        build_universe(conn, after_every_real_run, UNIVERSE, security_ids=[sid])
 
 
 def test_only_the_most_liquid_share_class_of_a_company_is_kept(
