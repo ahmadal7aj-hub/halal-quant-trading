@@ -123,6 +123,18 @@ def test_prices_that_are_only_suspicious_are_stored_for_the_quality_report(
     assert price_history(conn, security_id, DAY, DAY) == [odd]
 
 
+def test_a_heavily_split_adjusted_price_is_stored_as_delivered(
+    conn: Connection, security_id: int
+) -> None:
+    # TOPS reverse-split so often that Sharadar's adjusted 2004 prices are ~2.8e14; the first
+    # import crashed on them because the column only held up to 1e13 (found loading 2004-08).
+    huge = Decimal("284957463126231.5")
+    row = raw_price(security_id, open=huge, high=huge, low=huge, close=huge, adjusted_close=huge)
+    big = DailyPrice.model_validate(row)
+    add_prices(conn, [big])
+    assert price_history(conn, security_id, DAY, DAY) == [big]
+
+
 def test_corporate_actions_of_every_type_are_stored(conn: Connection, security_id: int) -> None:
     base = {"security_id": security_id, "effective_date": DAY, "source": "t", "data_version": "v"}
     add_corporate_actions(

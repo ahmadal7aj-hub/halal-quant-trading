@@ -48,7 +48,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from halal_quant.db.engine import metadata
 
-PRICE = Numeric(19, 6)
+# Wide on purpose: split-adjusted history of a company that reverse-split many times reaches ~1e14.
+PRICE = Numeric(30, 6)
 ACTION_VALUE = Numeric(19, 8)
 ACTION_TYPES = ("SPLIT", "DIVIDEND", "MERGER", "SYMBOL_CHANGE", "DELISTING")
 
