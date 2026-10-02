@@ -1,0 +1,11 @@
+# Momentum V1 (PRD section 10). A research variable, not an approved rule: every parameter set
+# that is evaluated is recorded with its results (doc 03 R9). Changing a value means a new version.
+config_type: strategy_momentum
+version: momentum-v1
+status: proposed
+
+lookback_trading_days: 126     # return is measured over this many trading days ...
+skip_trading_days: 21          # ... ending this many trading days before the decision (skip the last month)
+top_n: 20                      # hold the best N eligible stocks
+weighting: equal               # equal dollars in each holding
+rebalance: first_trading_day_of_month   # the day each month's universe takes effect

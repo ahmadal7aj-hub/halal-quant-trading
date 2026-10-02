@@ -1,0 +1,28 @@
+# Research protocol protocol-v1 (ADR-003, approved by the owner on 2 Oct 2026).
+# The periods are fixed BEFORE any backtest and never changed after seeing results (doc 03 R7).
+# Changing ANY value needs the owner's approval and a new version (a new file).
+config_type: research_protocol
+version: protocol-v1
+status: approved
+approved_by: owner
+approved_on: 2026-10-02
+
+periods:
+  burn_in: {first: 1998-12-01, last: 2003-12-31}      # lookback windows only, never a result
+  in_sample: {first: 2004-01-01, last: 2013-12-31}    # design: choose the strategy and parameters here
+  validation: {first: 2014-01-01, last: 2018-12-31}   # may reject a design, may not re-tune it
+  out_of_sample: {first: 2019-01-01, last: 2026-09-30}  # touched ONCE, at the end of Phase 3
+
+costs:
+  commission_per_share: "0.005"       # USD per share, IBKR Pro style (conservative)
+  commission_min_per_order: "1.00"    # USD
+  commission_max_fraction: "0.01"     # of the trade value
+  slippage_bps:                       # one way, per side; report every result under all three
+    optimistic: "5"
+    base: "10"
+    stress: "25"
+
+# Dividend purification until the Sharia reviewer states a policy: about 0.93% of dividends, and a
+# dividend yield of about 1.6% a year, is an annual drag of about 1.5 basis points on a fully
+# invested portfolio. Applied as a daily fraction of the portfolio value.
+purification_annual_drag: "0.00015"
