@@ -60,6 +60,9 @@ security_table = Table(
     Column("industry", Text),
     Column("category", Text),  # provider's security type, e.g. "Domestic Common Stock"
     Column("sic_code", Text),  # SEC industry code (current only: G8 OI-2)
+    # Space-separated tickers of the company's other securities (share classes, units): NULL until
+    # imported, "" when the provider lists none (G8 OI-19).
+    Column("related_tickers", Text),
     Column("isin", Text),
     Column("cusip", Text),
     Column("start_date", Date),
@@ -129,6 +132,7 @@ class SecurityInfo(BaseModel):
     industry: str | None = None
     category: str | None = None
     sic_code: str | None = None
+    related_tickers: str | None = None
     isin: str | None = None
     cusip: str | None = None
 

@@ -11,7 +11,11 @@ recorded as its reason for exclusion (nothing is dropped silently):
    minimum price;
 5. its median daily dollar volume over the liquidity window is at least the minimum;
 6. it has no data-quality finding inside the window (fail closed; Test 3);
-7. only one share class per company is kept: the most liquid (G8 OI-19).
+7. only one share class per company is kept: the most liquid. Two securities are classes of one
+   company when they carry the same company name AND the provider lists them as related
+   (G8 OI-19). Related tickers alone are not enough: the provider also links spin-offs, mergers
+   and renames (107 of 441 links between common stocks), which are different companies. A
+   security whose related tickers were never imported falls back to its company name.
 
 Only information from before `as_of` is used: prices dated on or after `as_of` are ignored, and a
 classification only counts once its `effective_from` has been reached (Test 10).
@@ -24,7 +28,7 @@ add-only.
 import hashlib
 import json
 from collections import Counter, defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
@@ -56,7 +60,7 @@ from halal_quant.core.config import LoadedConfig, UniverseConfig
 from halal_quant.data.calendar import previous_trading_day
 from halal_quant.data.market_data import daily_price_table
 from halal_quant.data.quality import data_quality_finding_table, data_quality_run_table
-from halal_quant.data.security_master import security_table
+from halal_quant.data.security_master import security_table, security_ticker_table
 from halal_quant.db.engine import metadata
 from halal_quant.sharia.classification import (
     COMMON_STOCK_CATEGORIES,
@@ -162,6 +166,50 @@ def _company_key(name: str) -> str:
     return " ".join(name.upper().split())
 
 
+def _company_groups(
+    conn: Connection,
+    ids: Sequence[int],
+    names: Mapping[int, str],
+    related: Mapping[int, str | None],
+    as_of: date,
+) -> dict[int, str]:
+    """A company key per security: same-name securities that are related share one key.
+
+    A link counts only between the given securities (a related ticker that is not among them is
+    ignored) and only when the two have the same company name, so a spin-off, merger or rename that
+    the provider also lists as related does not merge two different companies. A security whose
+    related tickers were never imported (NULL) falls back to its company name alone.
+    """
+    t = security_ticker_table.c
+    ticker_to_id = {
+        r.ticker: r.security_id
+        for r in conn.execute(
+            select(t.security_id, t.ticker).where(
+                t.security_id.in_(ids),
+                t.valid_from <= as_of,
+                (t.valid_to.is_(None)) | (t.valid_to > as_of),
+            )
+        )
+    }
+    parent = {sid: sid for sid in ids}
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for sid in ids:
+        for ticker in (related.get(sid) or "").split():
+            other = ticker_to_id.get(ticker)
+            if other is not None and _company_key(names[other]) == _company_key(names[sid]):
+                parent[find(other)] = find(sid)
+    return {
+        sid: f"name:{_company_key(names[sid])}" if related.get(sid) is None else f"rel:{find(sid)}"
+        for sid in ids
+    }
+
+
 def _covering_quality_run(conn: Connection, first: date, last: date) -> int:
     r = data_quality_run_table.c
     run_id = conn.execute(
@@ -203,14 +251,16 @@ def build_universe(
 
     # 1-2. category and lifecycle
     s = security_table.c
-    wanted = select(s.security_id, s.company_name).where(
+    wanted = select(s.security_id, s.company_name, s.related_tickers).where(
         s.category.in_(categories),
         (s.start_date.is_(None)) | (s.start_date <= as_of),
         (s.end_date.is_(None)) | (s.end_date >= as_of),
     )
     if security_ids is not None:
         wanted = wanted.where(s.security_id.in_(security_ids))
-    candidates = {r.security_id: r.company_name for r in conn.execute(wanted)}
+    candidate_rows = conn.execute(wanted).all()
+    candidates = {r.security_id: r.company_name for r in candidate_rows}
+    related = {r.security_id: r.related_tickers for r in candidate_rows}
 
     # 3. Sharia classification in effect on as_of (Test 10: only records already effective)
     c = classification_table.c
@@ -302,9 +352,10 @@ def build_universe(
             clean.append(security_id)
 
     # 7. one share class per company: keep the most liquid (ties: lowest security_id)
+    company_of = _company_groups(conn, clean, candidates, related, as_of)
     by_company: dict[str, list[int]] = defaultdict(list)
     for security_id in clean:
-        by_company[_company_key(candidates[security_id])].append(security_id)
+        by_company[company_of[security_id]].append(security_id)
     members: list[int] = []
     for classes in by_company.values():
         keep = min(classes, key=lambda sid: (-liquidity[sid], sid))

@@ -63,15 +63,20 @@ def run_id(conn: Connection) -> int:
 
 
 def make_security(
-    conn: Connection, name: str | None = None, category: str = "Domestic Common Stock"
+    conn: Connection,
+    name: str | None = None,
+    category: str = "Domestic Common Stock",
+    ticker: str | None = None,
+    related: str | None = None,
 ) -> int:
     info = SecurityInfo(
         source="test",
         source_id=uuid.uuid4().hex,
         company_name=name or f"Company {uuid.uuid4().hex[:8]}",
         category=category,
+        related_tickers=related,
     )
-    ticker = "ZQ" + uuid.uuid4().hex[:6].upper()
+    ticker = ticker or "ZQ" + uuid.uuid4().hex[:6].upper()
     return create_security(conn, info, ticker, date(2015, 1, 2), "test", "test")
 
 
@@ -349,3 +354,61 @@ def test_the_liquidity_window_is_the_trading_days_before_the_date() -> None:
     assert len(WINDOW) == 20 and sorted(WINDOW) == WINDOW
     assert WINDOW[-1] == date(2020, 2, 28) and AS_OF not in WINDOW
     assert date(2020, 2, 17) not in WINDOW  # Presidents Day: the NYSE was closed
+
+
+def test_share_classes_are_the_same_name_and_listed_as_related(
+    conn: Connection, run_id: int
+) -> None:
+    tag = uuid.uuid4().hex[:5].upper()
+    a_ticker, b_ticker = f"ZA{tag}", f"ZB{tag}"
+    name = f"Alpha Holdings {tag}"
+    a = make_security(conn, name, ticker=a_ticker, related=f"{b_ticker} GONE{tag}")
+    b = make_security(conn, name, ticker=b_ticker, related=a_ticker)
+    for sid in (a, b):
+        classify(conn, sid)
+    trade(conn, a, volume=200_000)
+    trade(conn, b, volume=300_000)  # the more liquid class is kept
+    result = eligible(conn, a, b)
+    assert result.members == [b] and result.exclusions["duplicate_share_class"] == 1
+
+
+def test_related_securities_with_different_names_are_different_companies(
+    conn: Connection, run_id: int
+) -> None:
+    # spin-offs, mergers and renames are listed as related by the provider but are not share classes
+    tag = uuid.uuid4().hex[:5].upper()
+    parent_ticker, child_ticker = f"ZP{tag}", f"ZC{tag}"
+    parent = make_security(conn, f"Parent {tag} Inc", ticker=parent_ticker, related=child_ticker)
+    child = make_security(conn, f"Spin Off {tag} Corp", ticker=child_ticker, related=parent_ticker)
+    for sid in (parent, child):
+        classify(conn, sid)
+        trade(conn, sid)
+    result = eligible(conn, parent, child)
+    assert result.members == sorted([parent, child])
+    assert result.exclusions["duplicate_share_class"] == 0
+
+
+def test_unrelated_companies_with_the_same_name_are_both_kept_once_related_tickers_are_known(
+    conn: Connection, run_id: int
+) -> None:
+    name = f"Common Name {uuid.uuid4().hex[:6]}"
+    first = make_security(conn, name, related="")  # imported: the provider lists no relatives
+    second = make_security(conn, name, related="")
+    for sid in (first, second):
+        classify(conn, sid)
+        trade(conn, sid)
+    result = eligible(conn, first, second)
+    assert result.members == sorted([first, second])
+    assert result.exclusions["duplicate_share_class"] == 0
+
+
+def test_a_security_without_imported_related_tickers_falls_back_to_its_name(
+    conn: Connection, run_id: int
+) -> None:
+    name = f"Legacy Name {uuid.uuid4().hex[:6]}"
+    old = make_security(conn, name)  # related_tickers NULL: never imported
+    other = make_security(conn, name)
+    for sid in (old, other):
+        classify(conn, sid)
+        trade(conn, sid)
+    assert len(eligible(conn, old, other).members) == 1
