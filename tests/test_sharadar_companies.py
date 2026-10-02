@@ -160,3 +160,26 @@ def test_main_downloads_imports_and_prints_a_summary(
     assert "Downloaded 1 rows" in out and "created 1" in out and "review: 1 (ZQ): check me" in out
     assert fetched["endpoint"] == "tickers" and fetched["params"] == {"table": "stocks"}
     assert "k-1" not in out and engine.disposed
+
+
+@pytest.mark.parametrize(
+    ("delivered", "stored"),
+    [
+        ("GOOGN GOOGM GOOGL", "GOOGL GOOGM GOOGN"),  # sorted, so the order delivered never matters
+        ("brk.a", "BRK.A"),  # upper-cased
+        ("", ""),  # imported, none listed
+        ("N/A", ""),
+        ("  LAFA   LAFAU ", "LAFA LAFAU"),
+    ],
+)
+def test_related_tickers_are_stored_sorted_upper_case_and_empty_when_none(
+    delivered: str, stored: str
+) -> None:
+    record, reason = parse_company(row(relatedtickers=delivered))
+    assert reason is None and record is not None
+    assert record.info.related_tickers == stored
+
+
+def test_a_download_without_the_related_tickers_column_is_refused() -> None:
+    assert "relatedtickers" in companies.REQUIRED_COLUMNS
+    assert "related_tickers" in companies.DESCRIPTIVE_FIELDS  # so a changed list updates the row

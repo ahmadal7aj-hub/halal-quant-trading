@@ -61,6 +61,7 @@ REQUIRED_COLUMNS = (
     "location",
     "firstpricedate",
     "lastpricedate",
+    "relatedtickers",
 )
 DESCRIPTIVE_FIELDS = (
     "company_name",
@@ -71,6 +72,7 @@ DESCRIPTIVE_FIELDS = (
     "industry",
     "category",
     "sic_code",
+    "related_tickers",
 )
 MAX_REVIEW_ITEMS_IN_AUDIT = 50
 
@@ -109,6 +111,12 @@ def _clean(value: str | None) -> str | None:
     return text or None
 
 
+def _related(value: str | None) -> str:
+    """The other tickers of the company, upper-case and sorted ("" when there are none)."""
+    tokens = {t.upper() for t in (value or "").split() if t.upper() != "N/A"}
+    return " ".join(sorted(tokens))
+
+
 def parse_company(row: dict[str, str]) -> tuple[CompanyRecord | None, str | None]:
     """Turn one source row into a record, or say why it cannot be used."""
     permaticker, ticker, name = (_clean(row.get(k)) for k in ("permaticker", "ticker", "name"))
@@ -142,6 +150,7 @@ def parse_company(row: dict[str, str]) -> tuple[CompanyRecord | None, str | None
         industry=_clean(row.get("industry")),
         category=_clean(row.get("category")),
         sic_code=_clean(row.get("siccode")),
+        related_tickers=_related(row.get("relatedtickers")),
     )
     return (
         CompanyRecord(
