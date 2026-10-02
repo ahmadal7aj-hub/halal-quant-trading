@@ -5,6 +5,7 @@ from logging.config import fileConfig
 from alembic import context
 
 import halal_quant.audit  # noqa: F401  (registers tables on the shared metadata)
+import halal_quant.backtest.records  # noqa: F401
 import halal_quant.core.config  # noqa: F401
 import halal_quant.data.fundamentals  # noqa: F401
 import halal_quant.data.market_data  # noqa: F401
