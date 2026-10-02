@@ -1,0 +1,12 @@
+# Benchmark: hold EVERY eligible stock with enough price history, equal weight, same monthly rotation and
+# the same costs as Momentum V1 (ADR-003). It uses the momentum engine with a top_n larger than any universe
+# (about 1,200 at most), so nothing is filtered by rank. Run it with:
+#   python -m halal_quant.backtest.run --strategy config/strategy/equal_weight_universe_v1.yaml --period in_sample
+config_type: strategy_momentum
+version: equal_weight_universe_v1
+status: proposed
+lookback_trading_days: 126
+skip_trading_days: 21
+top_n: 100000
+weighting: equal
+rebalance: first_trading_day_of_month
