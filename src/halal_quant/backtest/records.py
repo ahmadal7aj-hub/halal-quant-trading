@@ -7,7 +7,7 @@ or a bug) and the run fails loudly instead of quietly storing a second answer.
 
 import hashlib
 import json
-import subprocess
+import subprocess  # nosec B404
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -217,9 +217,9 @@ def result_hash(result: BacktestResult) -> str:
 
 
 def code_version() -> str:
-    """The git commit the code is at, or `unknown` when git is not available."""
+    """The git commit the code is at, or `unknown` when git is not available (fixed command)."""
     try:
-        out = subprocess.run(  # noqa: S603 (fixed command, no user input)
+        out = subprocess.run(  # noqa: S603  # nosec B603 B607
             ["git", "rev-parse", "--short=12", "HEAD"],  # noqa: S607
             capture_output=True,
             text=True,
