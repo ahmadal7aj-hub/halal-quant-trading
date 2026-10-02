@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     # in .env; it is a SecretStr, so logging masks it automatically.
     sharadar_api_key: SecretStr | None = None
 
+    # Zoya API key (one month of the Personal Use Basic plan, for the task 15 cross-check).
+    # Optional, entered by the owner in .env; a SecretStr, so logging masks it automatically.
+    zoya_api_key: SecretStr | None = None
+
     def role_password(self, role: DbRole) -> SecretStr:
         return {
             DbRole.MIGRATOR: self.db_migrator_password,
