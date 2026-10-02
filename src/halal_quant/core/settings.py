@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     # Optional, entered by the owner in .env; a SecretStr, so logging masks it automatically.
     zoya_api_key: SecretStr | None = None
 
+    # SEC EDGAR asks every automated client to identify itself with a contact, for example
+    # "HalalQuantResearch you@example.com". Not a secret, but personal, so it lives in .env.
+    sec_user_agent: str | None = None
+
     def role_password(self, role: DbRole) -> SecretStr:
         return {
             DbRole.MIGRATOR: self.db_migrator_password,
