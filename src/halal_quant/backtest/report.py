@@ -116,6 +116,8 @@ def render_report(
         "",
         "Notes: risk-free rate taken as zero; strategy and equal-weight universe pay commission,",
         "slippage and the purification drag; benchmark funds are buy-and-hold, no costs.",
+        "The Sharia screen (AAOIFI-v1) is our own reading of the standard and has not",
+        "been reviewed by a qualified scholar.",
         "These are research results on past data, not a forecast and not advice.",
     ]
     return "\n".join(lines) + "\n"

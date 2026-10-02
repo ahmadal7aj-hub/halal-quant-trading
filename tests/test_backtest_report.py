@@ -51,3 +51,4 @@ def test_the_report_names_every_series_and_says_what_has_no_data() -> None:
     assert "SPY (buy and hold)" in text and "## Calendar-year returns" in text
     assert "SPUS: no price history" in text and "run 1: momentum-v1" in text
     assert "not a forecast and not advice" in text
+    assert "qualified scholar" in text and "has not" in text
