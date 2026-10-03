@@ -33,6 +33,7 @@ START_NAV = Decimal(100_000)
 MAX_PRICE_AGE_DAYS = 7  # how stale a price may be for a score
 TRADING_DAYS_PER_YEAR = Decimal(252)
 BPS = Decimal(10_000)
+BILLION = Decimal(1_000_000_000)
 CENT = Decimal("0.01")
 
 
@@ -169,6 +170,7 @@ def run_backtest(
     slippage_bps: Decimal,
     purification_drag: Decimal,
     risk_on: Callable[[date], bool] | None = None,
+    market_caps: Callable[[Sequence[int], date], dict[int, Decimal]] | None = None,
 ) -> BacktestResult:
     """Run the monthly rotation from the first decision date to `last_day`.
 
@@ -207,9 +209,15 @@ def run_backtest(
         }
         nav_before = cash + sum(current.values(), Decimal(0))
 
-        # --- choose the holdings: top N by momentum that can be traded today ---
-        scorer = volatility_scores if strategy.ranking == "low_volatility" else score_members
-        scores, window_start, window_end = scorer(members, decision, strategy, prices)
+        # --- choose the holdings: the top N by the ranking rule that can be traded today ---
+        if strategy.ranking == "market_cap":
+            if market_caps is None:
+                raise ValueError("A market_cap ranking needs a market value source.")
+            window_start = window_end = previous_trading_day(decision)
+            scores = {sid: cap for sid, cap in market_caps(members, window_end).items() if cap > 0}
+        else:
+            scorer = volatility_scores if strategy.ranking == "low_volatility" else score_members
+            scores, window_start, window_end = scorer(members, decision, strategy, prices)
         ranking = rank(scores)
         position = {sid: i + 1 for i, sid in enumerate(ranking)}
         tradable = [sid for sid in ranking if sid in today and today[sid].day == decision]
@@ -232,7 +240,11 @@ def run_backtest(
             traded += notional
             held, wanted = sid in current, sid in target
             if not held:
-                if strategy.ranking == "low_volatility":
+                if strategy.ranking == "market_cap":
+                    measure = (
+                        f"market value (${scores[sid] / BILLION:,.1f} billion on {window_end})"
+                    )
+                elif strategy.ranking == "low_volatility":
                     measure = (
                         f"{strategy.lookback_trading_days}-day volatility "
                         f"(daily {-scores[sid]:.2%}, "

@@ -190,3 +190,34 @@ def test_the_trend_signal_reads_only_closes_before_the_decision_and_fails_loudly
         trend_signal(conn, vintage, "TSY", 20)(date(2010, 1, 15))  # fewer than 20 closes yet
     with pytest.raises(ValueError, match="cannot give"):
         trend_signal(conn, vintage, "NOPE", 20)(date(2010, 3, 15))
+
+
+def test_market_value_lookup_uses_the_latest_value_on_or_before_the_day_and_ignores_stale_ones(
+    conn: Connection,
+) -> None:
+    from halal_quant.backtest.data import market_cap_lookup
+    from halal_quant.data.fundamentals import daily_market_cap_table
+
+    fresh, stale, absent = make_security(conn), make_security(conn), make_security(conn)
+    rows = [
+        (fresh, date(2010, 3, 1), 100),
+        (fresh, date(2010, 3, 3), 150),  # the latest on or before 3 Mar
+        (fresh, date(2010, 3, 4), 999),  # after the day: must not be read
+        (stale, date(2010, 2, 1), 70),  # more than a week old
+    ]
+    conn.execute(
+        daily_market_cap_table.insert(),
+        [
+            {
+                "security_id": sid,
+                "cap_date": d,
+                "market_cap_usd": Decimal(v),
+                "source": "test",
+                "data_version": "test",
+            }
+            for sid, d, v in rows
+        ],
+    )
+    found = market_cap_lookup(conn)([fresh, stale, absent], date(2010, 3, 3))
+    assert found == {fresh: Decimal(150)}
+    assert market_cap_lookup(conn)([], date(2010, 3, 3)) == {}

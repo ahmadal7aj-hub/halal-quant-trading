@@ -16,6 +16,7 @@ from sqlalchemy.dialects.postgresql import distinct_on
 from halal_quant.backtest.engine import PricePoint
 from halal_quant.core.config import LoadedConfig, UniverseConfig
 from halal_quant.data.calendar import previous_trading_day
+from halal_quant.data.fundamentals import daily_market_cap_table
 from halal_quant.data.vintage import vintage_benchmark_price_table, vintage_price_table
 from halal_quant.sharia.classification import classification_on
 from halal_quant.universe.builder import build_universe
@@ -116,3 +117,25 @@ def trend_signal(
         return above_average([r.adjusted_close for r in rows])
 
     return risk_on
+
+
+def market_cap_lookup(conn: Connection) -> Callable[[Sequence[int], date], dict[int, Decimal]]:
+    """Market value in USD on or before a day (no older than a week), for the market_cap ranking."""
+    m = daily_market_cap_table.c
+
+    def lookup(security_ids: Sequence[int], day: date) -> dict[int, Decimal]:
+        if not security_ids:
+            return {}
+        rows = conn.execute(
+            select(m.security_id, m.market_cap_usd)
+            .ext(distinct_on(m.security_id))
+            .where(
+                m.security_id.in_(list(security_ids)),
+                m.cap_date <= day,
+                m.cap_date > day - timedelta(days=7),
+            )
+            .order_by(m.security_id, m.cap_date.desc())
+        )
+        return {r.security_id: r.market_cap_usd for r in rows}
+
+    return lookup
