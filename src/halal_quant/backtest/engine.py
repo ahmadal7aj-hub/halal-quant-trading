@@ -20,13 +20,13 @@ How a month works (decision day D = the first trading day of the month):
 All money arithmetic is `Decimal`, so the same inputs always give the identical result hash.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from typing import Protocol
 
-from halal_quant.backtest.config import Costs, MomentumConfig
+from halal_quant.backtest.config import Costs, StrategyConfig
 from halal_quant.data.calendar import previous_trading_day, trading_days
 
 START_NAV = Decimal(100_000)
@@ -104,7 +104,7 @@ def shift_back(day: date, n: int) -> date:
 
 
 def score_members(
-    members: Sequence[int], decision: date, strategy: MomentumConfig, prices: PriceSource
+    members: Sequence[int], decision: date, strategy: StrategyConfig, prices: PriceSource
 ) -> tuple[dict[int, Decimal], date, date]:
     """Momentum scores for `members`, and the window used. Uses only closes before `decision`."""
     window_end = shift_back(previous_trading_day(decision), strategy.skip_trading_days)
@@ -116,6 +116,30 @@ def score_members(
         for sid in members
         if sid in ends and sid in starts and starts[sid].adjusted > 0
     }
+    return scores, window_start, window_end
+
+
+def volatility_scores(
+    members: Sequence[int], decision: date, strategy: StrategyConfig, prices: PriceSource
+) -> tuple[dict[int, Decimal], date, date]:
+    """Low-volatility scores: minus the standard deviation of daily returns over the lookback.
+
+    The window ends on the last close before `decision`. A member needs at least 80% of the
+    window's days (a thin history is not a calm stock), so the best score is the calmest.
+    """
+    window_end = previous_trading_day(decision)
+    window_start = shift_back(window_end, strategy.lookback_trading_days)
+    series = prices.series(members, window_start, window_end)
+    minimum = strategy.lookback_trading_days * 4 // 5
+    scores: dict[int, Decimal] = {}
+    for sid in members:
+        closes = [series[sid][d][0] for d in sorted(series.get(sid, {}))]
+        if len(closes) < minimum or any(c <= 0 for c in closes):
+            continue
+        moves = [b / a - 1 for a, b in zip(closes, closes[1:], strict=False)]
+        mean = sum(moves, Decimal(0)) / len(moves)
+        variance = sum(((m - mean) ** 2 for m in moves), Decimal(0)) / len(moves)
+        scores[sid] = -variance.sqrt()
     return scores, window_start, window_end
 
 
@@ -140,12 +164,16 @@ def run_backtest(
     last_day: date,
     universe: UniverseSource,
     prices: PriceSource,
-    strategy: MomentumConfig,
+    strategy: StrategyConfig,
     costs: Costs,
     slippage_bps: Decimal,
     purification_drag: Decimal,
+    risk_on: Callable[[date], bool] | None = None,
 ) -> BacktestResult:
-    """Run the monthly rotation from the first decision date to `last_day`."""
+    """Run the monthly rotation from the first decision date to `last_day`.
+
+    `risk_on(decision)` is the optional trend filter: when False, nothing is held that month.
+    """
     result = BacktestResult()
     if not decision_dates:
         return result
@@ -180,11 +208,13 @@ def run_backtest(
         nav_before = cash + sum(current.values(), Decimal(0))
 
         # --- choose the holdings: top N by momentum that can be traded today ---
-        scores, window_start, window_end = score_members(members, decision, strategy, prices)
+        scorer = volatility_scores if strategy.ranking == "low_volatility" else score_members
+        scores, window_start, window_end = scorer(members, decision, strategy, prices)
         ranking = rank(scores)
         position = {sid: i + 1 for i, sid in enumerate(ranking)}
         tradable = [sid for sid in ranking if sid in today and today[sid].day == decision]
-        selected = tradable[: strategy.top_n]
+        market_off = risk_on is not None and not risk_on(decision)
+        selected = [] if market_off else tradable[: strategy.top_n]
         target = {sid: nav_before / len(selected) for sid in selected} if selected else {}
 
         # --- trades at the close of the decision day ---
@@ -202,17 +232,29 @@ def run_backtest(
             traded += notional
             held, wanted = sid in current, sid in target
             if not held:
-                kind, reason = (
-                    "open",
-                    (
-                        f"bought: ranked {position[sid]} of {len(ranking)} eligible by "
+                if strategy.ranking == "low_volatility":
+                    measure = (
+                        f"{strategy.lookback_trading_days}-day volatility "
+                        f"(daily {-scores[sid]:.2%}, "
+                        f"measured {window_start} to {window_end})"
+                    )
+                else:
+                    measure = (
                         f"{strategy.lookback_trading_days}-day momentum (score {scores[sid]:+.1%}, "
                         f"measured {window_start} to {window_end})"
-                    ),
+                    )
+                kind, reason = (
+                    "open",
+                    f"bought: ranked {position[sid]} of {len(ranking)} eligible by {measure}",
                 )
             elif not wanted:
                 kind = "close"
-                if sid not in members:
+                if market_off:
+                    reason = (
+                        f"sold: trend filter off on {decision} (market below its "
+                        f"{strategy.trend_filter_days}-day average); holding cash"
+                    )
+                elif sid not in members:
                     why_not = universe.describe(sid, decision)
                     reason = f"sold: no longer eligible on {decision} ({why_not})"
                 elif sid in position:

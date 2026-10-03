@@ -11,6 +11,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
+import yaml
 from pydantic import Field, model_validator
 
 from halal_quant.core.config import LoadedConfig, Status, _Strict, load_config
@@ -83,6 +84,39 @@ class MomentumConfig(_Strict):
     weighting: Literal["equal"]
     rebalance: Literal["first_trading_day_of_month"]
 
+    # Plain attributes, not settings: the engine treats both strategy types alike, and because they
+    # are not fields they do not change the recorded hash of an existing strategy file.
+    @property
+    def ranking(self) -> str:
+        return "momentum"
+
+    @property
+    def trend_filter_days(self) -> int | None:
+        return None
+
+    @property
+    def trend_symbol(self) -> str:
+        return "SPY"
+
+
+class OverlayConfig(_Strict):
+    """Stage A2 strategies (private plan 08, section 7): a ranking rule, optional trend filter."""
+
+    config_type: Literal["strategy_overlay"]
+    version: str = Field(min_length=1)
+    status: Status
+    lookback_trading_days: int = Field(gt=0)
+    skip_trading_days: int = Field(ge=0)
+    top_n: int = Field(gt=0)
+    weighting: Literal["equal"]
+    rebalance: Literal["first_trading_day_of_month"]
+    ranking: Literal["momentum", "low_volatility"]  # low_volatility: the calmest stocks first
+    trend_filter_days: int | None = Field(default=None, gt=0)  # cash when the market is below it
+    trend_symbol: str = "SPY"  # the market signal (never bought)
+
+
+StrategyConfig = MomentumConfig | OverlayConfig
+
 
 class ProtocolError(Exception):
     """A run would break the research protocol."""
@@ -93,6 +127,14 @@ def load_protocol(path: Path) -> LoadedConfig[ResearchProtocol]:
 
 
 def load_momentum(path: Path) -> LoadedConfig[MomentumConfig]:
+    return load_config(path, MomentumConfig)
+
+
+def load_strategy(path: Path) -> LoadedConfig[MomentumConfig] | LoadedConfig[OverlayConfig]:
+    """Load a strategy file of either type, chosen by its `config_type`."""
+    data = yaml.safe_load(path.read_bytes())
+    if isinstance(data, dict) and data.get("config_type") == "strategy_overlay":
+        return load_config(path, OverlayConfig)
     return load_config(path, MomentumConfig)
 
 
