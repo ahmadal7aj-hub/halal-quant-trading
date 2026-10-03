@@ -15,16 +15,6 @@ from sqlalchemy import Connection, text
 
 from halal_quant.trading.records import AWAITING_APPROVAL, kill_switch_engaged
 
-LATEST_STATE = (
-    "(SELECT e.state FROM hq.order_state_event e "
-    "WHERE e.order_id = o.id ORDER BY e.id DESC LIMIT 1)"
-)
-LATEST_PROPOSAL_STATUS = (
-    "(SELECT e.status FROM hq.proposal_event e "
-    "WHERE e.proposal_id = p.id ORDER BY e.id DESC LIMIT 1)"
-)
-FILLED_SIGNED = "CASE WHEN o.side = 'BUY' THEN f.quantity ELSE -f.quantity END"
-
 
 @dataclass(frozen=True)
 class Holding:
@@ -46,7 +36,7 @@ def _scalar(conn: Connection, sql: str, **params: Any) -> Any:
 
 def _count_orders_in(conn: Connection, states: tuple[str, ...]) -> int:
     """How many broker orders are currently in one of `states`."""
-    sql = f"SELECT count(*) FROM hq.broker_order o WHERE {LATEST_STATE} = ANY(:states)"
+    sql = "SELECT count(*) FROM hq.order_current_state WHERE state = ANY(:states)"
     return int(_scalar(conn, sql, states=list(states)) or 0)
 
 
@@ -69,11 +59,9 @@ def holdings(conn: Connection, approved_funds: list[str]) -> list[Holding]:
     """What the order records say we hold (fills), valued at the latest known fund price."""
     rows = _rows(
         conn,
-        f"""
-        SELECT o.symbol, SUM({FILLED_SIGNED}) AS quantity
-        FROM hq.broker_order o JOIN hq.order_fill f ON f.order_id = o.id
-        GROUP BY o.symbol HAVING SUM({FILLED_SIGNED}) <> 0
-        ORDER BY o.symbol
+        """
+        SELECT symbol, SUM(signed_quantity) AS quantity FROM hq.fill_signed
+        GROUP BY symbol HAVING SUM(signed_quantity) <> 0 ORDER BY symbol
         """,
     )
     prices = latest_fund_prices(conn)
@@ -103,11 +91,11 @@ def pending_approvals(conn: Connection) -> list[dict[str, Any]]:
     """Proposals waiting for the owner, with everything the approval screen needs (PRD §27)."""
     return _rows(
         conn,
-        f"""
+        """
         SELECT p.id, p.symbol, p.side, p.quantity, p.ref_price, p.notional, p.strategy_reason,
                p.risk_result, p.reason_code, p.explanation, p.created_at
-        FROM hq.trade_proposal p
-        WHERE {LATEST_PROPOSAL_STATUS} = :waiting
+        FROM hq.trade_proposal p JOIN hq.proposal_current_status s ON s.proposal_id = p.id
+        WHERE s.status = :waiting
         ORDER BY p.id
         """,
         waiting=AWAITING_APPROVAL,
@@ -117,11 +105,11 @@ def pending_approvals(conn: Connection) -> list[dict[str, Any]]:
 def recent_proposals(conn: Connection, limit: int = 50) -> list[dict[str, Any]]:
     return _rows(
         conn,
-        f"""
+        """
         SELECT p.id, p.created_at, p.symbol, p.side, p.quantity, p.notional, p.risk_result,
-               p.reason_code, p.explanation, p.strategy_reason,
-               {LATEST_PROPOSAL_STATUS} AS status
-        FROM hq.trade_proposal p ORDER BY p.id DESC LIMIT :n
+               p.reason_code, p.explanation, p.strategy_reason, s.status
+        FROM hq.trade_proposal p LEFT JOIN hq.proposal_current_status s ON s.proposal_id = p.id
+        ORDER BY p.id DESC LIMIT :n
         """,
         n=limit,
     )
@@ -131,12 +119,13 @@ def orders(conn: Connection, limit: int = 50) -> list[dict[str, Any]]:
     """Every broker order with its latest state and how much has filled (PRD §26 Orders)."""
     return _rows(
         conn,
-        f"""
+        """
         SELECT o.id, o.created_at, o.symbol, o.side, o.quantity, o.limit_price, o.account_id,
-               {LATEST_STATE} AS state,
+               s.state,
                COALESCE((SELECT SUM(f.quantity) FROM hq.order_fill f WHERE f.order_id = o.id), 0)
                    AS filled
-        FROM hq.broker_order o ORDER BY o.id DESC LIMIT :n
+        FROM hq.broker_order o LEFT JOIN hq.order_current_state s ON s.order_id = o.id
+        ORDER BY o.id DESC LIMIT :n
         """,
         n=limit,
     )
