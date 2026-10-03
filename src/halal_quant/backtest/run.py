@@ -11,6 +11,7 @@ the result and must reproduce the stored hash, otherwise the run fails (PRD §18
 
 import argparse
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -23,13 +24,14 @@ from halal_quant.audit import AuditEvent, record_event
 from halal_quant.backtest.analytics import summarize
 from halal_quant.backtest.config import (
     MomentumConfig,
+    OverlayConfig,
     ProtocolError,
     ResearchProtocol,
     guard_period,
-    load_momentum,
     load_protocol,
+    load_strategy,
 )
-from halal_quant.backtest.data import SqlPriceSource, SqlUniverseSource
+from halal_quant.backtest.data import SqlPriceSource, SqlUniverseSource, trend_signal
 from halal_quant.backtest.engine import (
     BacktestResult,
     PriceSource,
@@ -87,7 +89,7 @@ def decision_dates(first: date, last: date) -> list[date]:
 def execute_run(
     conn: Connection,
     vintage_id: str,
-    strategy: LoadedConfig[MomentumConfig],
+    strategy: LoadedConfig[MomentumConfig] | LoadedConfig[OverlayConfig],
     protocol: LoadedConfig[ResearchProtocol],
     universe: LoadedConfig[UniverseConfig],
     first: date,
@@ -97,6 +99,7 @@ def execute_run(
     prices: PriceSource | None = None,
     universe_source: UniverseSource | None = None,
     actor: str = ACTOR,
+    risk_on: Callable[[date], bool] | None = None,
 ) -> RunOutcome:
     """Run one backtest, verify reproducibility, store it if new, and return its outcome."""
     status = vintage_status(conn, vintage_id)
@@ -124,6 +127,9 @@ def execute_run(
         last_day=last,
         final_test=final_test,
     )
+    days = strategy.config.trend_filter_days
+    if risk_on is None and days is not None:
+        risk_on = trend_signal(conn, vintage_id, strategy.config.trend_symbol, days)
     result: BacktestResult = run_backtest(
         decision_dates(first, last),
         last,
@@ -133,6 +139,7 @@ def execute_run(
         protocol.config.costs,
         bps,
         protocol.config.purification_annual_drag,
+        risk_on,
     )
     digest = result_hash(result)
     stored = stored_result_hash(conn, run_key(inputs))
@@ -231,7 +238,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         parser.error("give --period, or both --first and --last")
     cases = list(protocol.config.costs.slippage_bps) if args.slippage == "all" else [args.slippage]
-    strategy = load_momentum(args.strategy)
+    strategy = load_strategy(args.strategy)
     universe = load_config(args.universe, UniverseConfig)
     settings = get_settings()
     configure_logging(settings, level=settings.log_level)

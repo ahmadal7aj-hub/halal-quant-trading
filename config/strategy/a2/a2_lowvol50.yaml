@@ -1,0 +1,10 @@
+# Phase 3 Stage A2 (private/08_PHASE3_PLAN.md section 7): declared before any run; in-sample only.
+config_type: strategy_overlay
+version: a2_lowvol50
+status: proposed
+lookback_trading_days: 126
+skip_trading_days: 0
+top_n: 50
+weighting: equal
+rebalance: first_trading_day_of_month
+ranking: low_volatility

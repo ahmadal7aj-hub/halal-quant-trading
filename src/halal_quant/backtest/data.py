@@ -6,7 +6,7 @@ build when the inputs are identical (same content hash), so a rerun sees the sam
 """
 
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -15,7 +15,8 @@ from sqlalchemy.dialects.postgresql import distinct_on
 
 from halal_quant.backtest.engine import PricePoint
 from halal_quant.core.config import LoadedConfig, UniverseConfig
-from halal_quant.data.vintage import vintage_price_table
+from halal_quant.data.calendar import previous_trading_day
+from halal_quant.data.vintage import vintage_benchmark_price_table, vintage_price_table
 from halal_quant.sharia.classification import classification_on
 from halal_quant.universe.builder import build_universe
 
@@ -82,3 +83,36 @@ class SqlUniverseSource:
         if record is None:
             return "no Sharia classification in effect"
         return f"Sharia screen: {record['status']}: {str(record['reason'])[:90]}"
+
+
+def above_average(closes_newest_first: Sequence[Decimal]) -> bool:
+    """True when the newest close is above the simple average of all the closes given."""
+    return closes_newest_first[0] > sum(closes_newest_first, Decimal(0)) / len(closes_newest_first)
+
+
+def trend_signal(
+    conn: Connection, vintage_id: str, symbol: str, days: int
+) -> Callable[[date], bool]:
+    """The trend filter: is `symbol` above its `days`-day average as of the day before a decision?
+
+    Reads the one price vintage and only closes before the decision day. If the market series is
+    too short or stale, it raises: a silent default would change a result without anyone seeing it.
+    """
+    b = vintage_benchmark_price_table.c
+
+    def risk_on(decision: date) -> bool:
+        last_day = previous_trading_day(decision)
+        rows = conn.execute(
+            select(b.price_date, b.adjusted_close)
+            .where(b.vintage_id == vintage_id, b.symbol == symbol, b.price_date <= last_day)
+            .order_by(b.price_date.desc())
+            .limit(days)
+        ).all()
+        if len(rows) < days or rows[0].price_date < last_day - timedelta(days=7):
+            raise ValueError(
+                f"The {symbol} series in vintage {vintage_id!r} cannot give a {days}-day average "
+                f"for {decision} ({len(rows)} closes found)."
+            )
+        return above_average([r.adjusted_close for r in rows])
+
+    return risk_on

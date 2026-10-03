@@ -158,3 +158,35 @@ def test_out_of_sample_is_refused_and_nothing_is_stored(conn: Connection, vintag
         run_once(conn, vintage, prices, universe, date(2019, 1, 2), date(2019, 3, 29))
     after = conn.execute(select(func.count()).select_from(backtest_run_table)).scalar_one()
     assert after == before
+
+
+def test_the_trend_signal_reads_only_closes_before_the_decision_and_fails_loudly_on_short_data(
+    conn: Connection, vintage: str
+) -> None:
+    from halal_quant.backtest.data import trend_signal
+    from halal_quant.data.calendar import trading_days
+    from halal_quant.data.vintage import vintage_benchmark_price_table
+
+    days = list(trading_days(date(2010, 1, 4), date(2010, 3, 31)))
+    closes = [Decimal(100 + i) for i in range(len(days))]  # a steady climb
+    conn.execute(
+        vintage_benchmark_price_table.insert(),
+        [
+            {
+                "vintage_id": vintage,
+                "symbol": "TSY",
+                "price_date": d,
+                "close_unadjusted": c,
+                "adjusted_close": c,
+                "volume": 1,
+            }
+            for d, c in zip(days, closes, strict=True)
+        ],
+    )
+    on = trend_signal(conn, vintage, "TSY", 20)
+    assert on(date(2010, 3, 15)) is True  # climbing: above its 20-day average
+    assert on(date(2010, 3, 15)) == on(date(2010, 3, 15))
+    with pytest.raises(ValueError, match="cannot give"):
+        trend_signal(conn, vintage, "TSY", 20)(date(2010, 1, 15))  # fewer than 20 closes yet
+    with pytest.raises(ValueError, match="cannot give"):
+        trend_signal(conn, vintage, "NOPE", 20)(date(2010, 3, 15))
