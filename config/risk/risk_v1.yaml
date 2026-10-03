@@ -1,9 +1,11 @@
-# Risk limits risk-v1 (PRD section 12; doc 03 O1). PROPOSED by the agent for the owner's approval:
-# cautious defaults for a paper-trading portfolio, not a recommendation about real money.
+# Risk limits risk-v1 (PRD section 12; doc 03 O1). Proposed by the agent, APPROVED by the owner on 3 Oct 2026
+# ("Approve"). Cautious defaults for a paper-trading portfolio, not a recommendation about real money.
 # Every value is configuration. Changing any value needs a new version (a new file) and the owner's approval.
 config_type: risk_limits
 version: risk-v1
-status: proposed
+status: approved
+approved_by: owner
+approved_on: 2026-10-03
 
 max_position_pct: "10"              # one stock, of the portfolio value
 max_fund_position_pct: "60"         # one approved halal fund (a fund is already diversified)

@@ -50,8 +50,8 @@ def sell(symbol: str = "AAA", shares: int = 50, price: int = 100) -> OrderReques
     return OrderRequest(symbol, "SELL", D(shares), D(price))
 
 
-def test_the_shipped_limits_load_and_are_proposed_not_approved() -> None:
-    assert LIMITS.status == "proposed" and LIMITS.approved_by is None
+def test_the_shipped_limits_load_and_carry_the_owners_approval() -> None:
+    assert LIMITS.status == "approved" and LIMITS.approved_by == "owner"
     assert LIMITS.max_position_pct == D(10) and LIMITS.approved_funds == ["SPUS", "HLAL"]
 
 
