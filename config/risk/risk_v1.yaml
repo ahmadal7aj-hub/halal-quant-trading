@@ -1,0 +1,21 @@
+# Risk limits risk-v1 (PRD section 12; doc 03 O1). PROPOSED by the agent for the owner's approval:
+# cautious defaults for a paper-trading portfolio, not a recommendation about real money.
+# Every value is configuration. Changing any value needs a new version (a new file) and the owner's approval.
+config_type: risk_limits
+version: risk-v1
+status: proposed
+
+max_position_pct: "10"              # one stock, of the portfolio value
+max_fund_position_pct: "60"         # one approved halal fund (a fund is already diversified)
+max_sector_pct: "30"                # all stocks of one sector
+max_total_exposure_pct: "100"       # invested share (the rest stays cash)
+max_daily_turnover_pct: "60"        # buys plus sells in one day, of the portfolio value
+max_order_value: "50000"            # USD, one order
+manual_review_order_value: "20000"  # larger orders wait for the owner's approval
+max_portfolio_drawdown_pct: "25"    # buying stops after a 25% fall from the peak
+max_daily_loss_pct: "5"             # buying stops after a 5% loss in a day
+min_average_daily_volume_usd: "1000000"
+max_price_age_days: 3               # older prices block trading (covers weekends)
+approved_funds:
+  - SPUS
+  - HLAL
