@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     # "HalalQuantResearch you@example.com". Not a secret, but personal, so it lives in .env.
     sec_user_agent: str | None = None
 
+    # Dashboard login: a salted PBKDF2 hash made by `python -m halal_quant.dashboard.auth` (never
+    # the password itself). Without it the dashboard refuses everyone (fail closed).
+    dashboard_password_hash: SecretStr | None = None
+
     def role_password(self, role: DbRole) -> SecretStr:
         return {
             DbRole.MIGRATOR: self.db_migrator_password,
