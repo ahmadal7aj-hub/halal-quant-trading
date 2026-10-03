@@ -1,0 +1,9 @@
+# Phase 3 Stage A grid (private/08_PHASE3_PLAN.md): declared before any run; in-sample only.
+config_type: strategy_momentum
+version: momentum_l126_s0_n20
+status: proposed
+lookback_trading_days: 126
+skip_trading_days: 0
+top_n: 20
+weighting: equal
+rebalance: first_trading_day_of_month
