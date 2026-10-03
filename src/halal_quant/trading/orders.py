@@ -293,7 +293,8 @@ def submit_approved_proposal(
     ).scalar_one_or_none()
     if order_id is None:  # lost a race with another process: that one owns the order
         raced = _existing(conn, key)
-        assert raced is not None
+        if raced is None:
+            raise ExecutionRefused("The order could not be created or found: nothing was sent.")
         return SubmitOutcome(raced, order_state(conn, raced) or APPROVED, True)
     record_state(conn, order_id, APPROVED, actor, "proposal approved; order created")
     record_state(conn, order_id, SUBMITTED, actor, "about to send to the broker")
