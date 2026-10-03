@@ -88,3 +88,44 @@ def test_above_average_compares_the_newest_close_with_the_mean() -> None:
     assert above_average([Decimal(110), Decimal(100), Decimal(100)])
     assert not above_average([Decimal(90), Decimal(100), Decimal(100)])
     assert not above_average([Decimal(100), Decimal(100)])  # equal is not above
+
+
+def by_cap(top_n: int = 1) -> OverlayConfig:
+    return OverlayConfig(
+        config_type="strategy_overlay",
+        version="test-cap",
+        status="proposed",
+        lookback_trading_days=5,
+        skip_trading_days=0,
+        top_n=top_n,
+        weighting="equal",
+        rebalance="first_trading_day_of_month",
+        ranking="market_cap",
+    )
+
+
+def test_the_largest_companies_are_bought_using_the_value_before_the_decision_day() -> None:
+    asked: list[date] = []
+
+    def caps(ids: object, day: date) -> dict[int, Decimal]:
+        asked.append(day)
+        return {1: Decimal(5_000_000_000), 2: Decimal(80_000_000_000), 3: Decimal(0)}
+
+    result = run_backtest(
+        [D1], D1, FakeUniverse({D1: [1, 2, 3]}), FakePrices(PRICES), by_cap(top_n=2), ZERO,
+        Decimal(0), Decimal(0), market_caps=caps,
+    )  # fmt: skip
+    assert sorted(t.security_id for t in result.trades) == [1, 2]  # 3 has no usable value
+    assert asked == [date(2020, 1, 31)]  # the day before 3 Feb 2020 (D1), never D1 itself
+    assert "ranked 1 of 2" in next(t for t in result.trades if t.security_id == 2).reason
+    assert "$80.0 billion" in next(t for t in result.trades if t.security_id == 2).reason
+
+
+def test_a_market_value_ranking_without_a_source_fails_loudly() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="market value source"):
+        run_backtest(
+            [D1], D1, FakeUniverse({D1: [1]}), FakePrices(PRICES), by_cap(), ZERO,
+            Decimal(0), Decimal(0),
+        )  # fmt: skip

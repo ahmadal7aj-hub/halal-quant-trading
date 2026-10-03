@@ -110,7 +110,7 @@ class OverlayConfig(_Strict):
     top_n: int = Field(gt=0)
     weighting: Literal["equal"]
     rebalance: Literal["first_trading_day_of_month"]
-    ranking: Literal["momentum", "low_volatility"]  # low_volatility: the calmest stocks first
+    ranking: Literal["momentum", "low_volatility", "market_cap"]  # market_cap: largest first
     trend_filter_days: int | None = Field(default=None, gt=0)  # cash when the market is below it
     trend_symbol: str = "SPY"  # the market signal (never bought)
 

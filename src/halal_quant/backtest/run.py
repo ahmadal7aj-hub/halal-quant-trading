@@ -11,7 +11,7 @@ the result and must reproduce the stored hash, otherwise the run fails (PRD §18
 
 import argparse
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -31,7 +31,12 @@ from halal_quant.backtest.config import (
     load_protocol,
     load_strategy,
 )
-from halal_quant.backtest.data import SqlPriceSource, SqlUniverseSource, trend_signal
+from halal_quant.backtest.data import (
+    SqlPriceSource,
+    SqlUniverseSource,
+    market_cap_lookup,
+    trend_signal,
+)
 from halal_quant.backtest.engine import (
     BacktestResult,
     PriceSource,
@@ -100,6 +105,7 @@ def execute_run(
     universe_source: UniverseSource | None = None,
     actor: str = ACTOR,
     risk_on: Callable[[date], bool] | None = None,
+    market_caps: Callable[[Sequence[int], date], dict[int, Decimal]] | None = None,
 ) -> RunOutcome:
     """Run one backtest, verify reproducibility, store it if new, and return its outcome."""
     status = vintage_status(conn, vintage_id)
@@ -130,6 +136,8 @@ def execute_run(
     days = strategy.config.trend_filter_days
     if risk_on is None and days is not None:
         risk_on = trend_signal(conn, vintage_id, strategy.config.trend_symbol, days)
+    if market_caps is None and strategy.config.ranking == "market_cap":
+        market_caps = market_cap_lookup(conn)
     result: BacktestResult = run_backtest(
         decision_dates(first, last),
         last,
@@ -140,6 +148,7 @@ def execute_run(
         bps,
         protocol.config.purification_annual_drag,
         risk_on,
+        market_caps,
     )
     digest = result_hash(result)
     stored = stored_result_hash(conn, run_key(inputs))

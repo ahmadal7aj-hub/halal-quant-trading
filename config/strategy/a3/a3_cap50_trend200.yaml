@@ -1,0 +1,12 @@
+# Phase 3 Stage A3 (private/08_PHASE3_PLAN.md section 11): declared before any run; in-sample only.
+config_type: strategy_overlay
+version: a3_cap50_trend200
+status: proposed
+lookback_trading_days: 126
+skip_trading_days: 0
+top_n: 50
+weighting: equal
+rebalance: first_trading_day_of_month
+ranking: market_cap
+trend_filter_days: 200
+trend_symbol: SPY
