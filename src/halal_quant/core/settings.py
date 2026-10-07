@@ -6,6 +6,7 @@ Nothing here has a secret default: a missing password stops the app (fail closed
 
 from enum import StrEnum
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr
@@ -60,6 +61,12 @@ class Settings(BaseSettings):
     # Dashboard login: a salted PBKDF2 hash made by `python -m halal_quant.dashboard.auth` (never
     # the password itself). Without it the dashboard refuses everyone (fail closed).
     dashboard_password_hash: SecretStr | None = None
+
+    # Where backups are written and read (default `E:\Backups`), and the passphrase that encrypts
+    # them. The passphrase is the owner's: keep a copy in a password manager, or the backups cannot
+    # be restored. Without it backups are made unencrypted and the dashboard warns.
+    backup_dir: Path | None = None
+    backup_passphrase: SecretStr | None = None
 
     def role_password(self, role: DbRole) -> SecretStr:
         return {

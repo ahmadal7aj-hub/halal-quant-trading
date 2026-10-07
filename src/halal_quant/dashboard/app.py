@@ -16,6 +16,8 @@ from halal_quant.core.settings import DbRole, get_settings
 from halal_quant.dashboard import queries
 from halal_quant.dashboard.auth import LoginThrottle, verify_password
 from halal_quant.db.engine import make_engine
+from halal_quant.ops.alerts import CRITICAL, collect_state, evaluate
+from halal_quant.ops.backup import DEFAULT_DIR, latest_status
 from halal_quant.trading.records import (
     ProposalError,
     decide_proposal,
@@ -31,6 +33,10 @@ RISK_FILE = Path("config/risk/risk_v1.yaml")
 @st.cache_resource
 def engine(role: DbRole) -> Any:
     return make_engine(get_settings(), role)
+
+
+def backup_dir() -> Path:
+    return get_settings().backup_dir or DEFAULT_DIR
 
 
 def read() -> Any:
@@ -59,6 +65,9 @@ def overview() -> None:
         health = queries.system_health(conn)
         waiting = queries.pending_approvals(conn)
         orders = queries.orders(conn, 5)
+        alerts = evaluate(collect_state(conn, backup_dir()))
+    for alert in alerts:
+        (st.error if alert.severity == CRITICAL else st.warning)(alert.message)
     if risk["kill_switch_engaged"]:
         st.error("TRADING IS STOPPED: the kill switch is on. No orders can be sent.")
     else:
@@ -217,6 +226,7 @@ def health_page() -> None:
     st.title("System health")
     with read() as conn:
         h = queries.system_health(conn)
+    h["backup"] = latest_status(backup_dir())
     st.json(h, expanded=True)
 
 
