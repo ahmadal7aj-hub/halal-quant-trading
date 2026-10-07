@@ -1,0 +1,10 @@
+# The owner must be consulted on anything that changes safety, money-moving or Sharia behaviour.
+# (Branch protection currently requires CI but 0 approvals, since the owner is the only maintainer;
+# this file documents the intent and becomes enforceable if "require code owner review" is turned on.)
+*                         @ahmadal7aj-hub
+/config/risk/             @ahmadal7aj-hub
+/config/sharia/           @ahmadal7aj-hub
+/src/halal_quant/trading/ @ahmadal7aj-hub
+/src/halal_quant/sharia/  @ahmadal7aj-hub
+/migrations/              @ahmadal7aj-hub
+/.github/                 @ahmadal7aj-hub

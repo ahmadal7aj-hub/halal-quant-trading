@@ -53,3 +53,10 @@ docker-compose.override.yml
 # --- QuantConnect LEAN local artifacts ---
 .idea/
 backtests/*/output/
+
+# Database backups and Streamlit secrets must never be committed
+*.dump
+*.dump.enc
+*.manifest.json
+*.verified.json
+.streamlit/secrets.toml
